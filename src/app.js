@@ -1,6 +1,7 @@
-// Constants and Configuration
-console.log('Loading app.js...');
+import React, { useState } from 'react';
+import { Chart as ChartJS } from 'chart.js/auto';
 
+// Constants and Configuration
 const GEMINI_API_KEY = "AIzaSyAcwroBdyqURbkXLDUkzRQmDTH7FyX0TRA";
 
 // Color constants
@@ -860,27 +861,17 @@ Gunakan bahasa formal dan ilmiah yang mengalir dengan baik. Hindari penggunaan p
     function formatAnalysisText(text) {
         if (!text) return '';
 
-        // Format teks dengan markdown-style formatting
-        let formattedText = text
-            // Format bold text
-            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-            // Format italic text
-            .replace(/\*(.*?)\*/g, "<em>$1</em>")
-            // Format underlined text
-            .replace(/__(.*?)__/g, "<u>$1</u>")
-            // Format numbers and currency
-            .replace(/(\d{1,3}(?:,\d{3})*(?:\.\d+)?)/g, '<span class="number">$1</span>')
-            .replace(/(Rp\s*\d{1,3}(?:,\d{3})*(?:\.\d+)?)/g, '<span class="currency">$1</span>');
-
-        // Membersihkan teks dan membuat satu paragraf
-        formattedText = formattedText
-            .split(/\n+/) // Membagi berdasarkan newlines
-            .map(line => line.trim()) // Membersihkan whitespace
-            .filter(line => line && !line.startsWith('-')) // Menghapus baris kosong dan bullet points
-            .join(' '); // Menggabungkan menjadi satu paragraf
-
-        return `<p class="analysis-paragraph">${formattedText}</p>`;
-    }
+        // Format bold text (between **text**)
+        text = text.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+        
+        // Format italic text (between _text_)
+        text = text.replace(/_(.*?)_/g, "<em>$1</em>");
+        
+        // Format underlined text (between __text__)
+        text = text.replace(/__(.*?)__/g, "<u>$1</u>");
+        
+        return text;
+    };
 
     const defaultAnalysisText = `1. ANALISIS KELAYAKAN USAHA
 - Silakan masukkan data usaha tani Anda untuk mendapatkan **analisis kelayakan** yang akurat
@@ -2787,248 +2778,65 @@ const ResearchAnalysis = () => {
 
 // Komponen utama App
 const App = () => {
-  const [selectedComponent, setSelectedComponent] = React.useState(null);
-  const [showLanding, setShowLanding] = React.useState(true);
-
-  const handleComponentChange = (component) => {
-    console.log('Changing component to:', component);
-    setSelectedComponent(component);
-  };
-
-  const handleHomeClick = () => {
-    setShowLanding(true);
-    setSelectedComponent(null);
-  };
-
-  const handleEnterApp = () => {
-    setShowLanding(false);
-    setSelectedComponent('weather');
-  };
-
-  console.log('Current selected component:', selectedComponent);
-
-  if (showLanding) {
-    return (
-      <div className="landing-container" style={{ 
-        textAlign: 'center', 
-        padding: '2rem', 
-        backgroundColor: '#f9fafb', 
-        borderRadius: '8px', 
-        boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)'
-      }}>
-        <div style={{ marginTop: '2rem' }}>
-          <h1 style={{ fontSize: '2.5rem', color: COLORS.primary }}>PLATFORM PERTANI CERDAS INDONESIA</h1>
-          <p style={{ fontSize: '1.2rem', color: COLORS.gray, marginBottom: '1rem' }}>Aplikasi untuk membantu petani dalam melakukan analisis di bidang pertanian yang cerdas dan ilmiah</p>
-          <div>
-            <p style={{ 
-              fontSize: '1.1rem', 
-              color: COLORS.primary, 
-              marginBottom: '1.5rem',
-              fontWeight: 'bold',
-              borderTop: `2px solid ${COLORS.primary}`,
-              borderBottom: `2px solid ${COLORS.primary}`,
-              padding: '1rem',
-              display: 'inline-block'
-            }}>
-              Laboratorium Teaching and Research Farm, Fakultas Pertanian Universitas Jambi<br/>
-              Tahun 2024
-            </p>
-            <div style={{ marginTop: '1.5rem', marginBottom: '2.5rem' }}>
-              <button 
-                onClick={handleEnterApp} 
-                style={{ 
-                  padding: '12px 30px',
-                  backgroundColor: COLORS.primary,
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '1.1rem',
-                  fontWeight: '500',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-                  ':hover': {
-                    backgroundColor: COLORS.secondary,
-                    transform: 'translateY(-2px)',
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.15)'
-                  }
-                }}
-              >
-                Masuk ke Platform
-              </button>
-            </div>
-          </div>
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            gap: '2rem', 
-            flexWrap: 'wrap',
-            marginBottom: '2rem'
-          }}>
-            <div style={{ textAlign: 'center', width: '200px' }}>
-              <img src="/images/image_fx_Analysis5.jpg" alt="Weather Analysis" style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
-              <p style={{ marginTop: '0.5rem', color: COLORS.dark, textAlign: 'left' }}>Analisis Musim Tanam</p>
-              <p style={{ fontSize: '0.9rem', color: COLORS.gray, textAlign: 'left' }}>
-                Platform ini menyediakan analisis cuaca terkini yang membantu petani dalam merencanakan aktivitas pertanian dengan lebih efisien, mengurangi risiko kerugian akibat cuaca yang tidak menentu.
-              </p>
-            </div>
-            <div style={{ textAlign: 'center', width: '200px' }}>
-              <img src="/images/image_fx_Analysis6.jpg" alt="Farming Analysis" style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
-              <p style={{ marginTop: '0.5rem', color: COLORS.dark, textAlign: 'left' }}>Analisis Usaha Tani</p>
-              <p style={{ fontSize: '0.9rem', color: COLORS.gray, textAlign: 'left' }}>
-                Dengan analisis usaha tani, petani mendapatkan wawasan mendalam tentang praktik terbaik yang dapat meningkatkan hasil panen dan efisiensi operasional pertanian.
-              </p>
-            </div>
-            <div style={{ textAlign: 'center', width: '200px' }}>
-              <img src="/images/image_fx_Smart3.jpg" alt="Pest Economic Analysis" style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
-              <p style={{ marginTop: '0.5rem', color: COLORS.dark, textAlign: 'left' }}>Analisis Hama</p>
-              <p style={{ fontSize: '0.9rem', color: COLORS.gray, textAlign: 'left' }}>
-                Analisis ambang ekonomi hama memberikan informasi penting tentang kapan waktu yang tepat untuk melakukan tindakan pengendalian hama berdasarkan kepadatan populasi hama dan biaya pengendalian.
-              </p>
-            </div>
-            <div style={{ textAlign: 'center', width: '200px' }}>
-              <img src="/images/image_fx_Analysis1.jpg" alt="Research Analysis" style={{ width: '100%', height: 'auto', borderRadius: '8px' }} />
-              <p style={{ marginTop: '0.5rem', color: COLORS.dark, textAlign: 'left' }}>Analisa Penelitian</p>
-              <p style={{ fontSize: '0.9rem', color: COLORS.gray, textAlign: 'left' }}>
-                Analisa penelitian memberikan wawasan tentang efektivitas berbagai perlakuan dalam percobaan pertanian, membantu dalam pengambilan keputusan berbasis data.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  const [activeTab, setActiveTab] = React.useState('weather');
+  
   return (
-    <div>
-      <nav style={{ 
-        backgroundColor: COLORS.primary,
-        padding: '1rem',
-        marginBottom: '2rem',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div style={{
-          display: 'flex',
-          gap: '1rem',
-          alignItems: 'center'
-        }}>
-          <button 
-            onClick={handleHomeClick}
-            style={{
-              backgroundColor: 'white',
-              color: COLORS.primary,
-              border: 'none',
-              padding: '0.5rem',
-              borderRadius: '0.375rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '40px',
-              height: '40px',
-              transition: 'all 0.2s',
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-              ':hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.15)',
-                backgroundColor: '#f8fafc'
-              }
-            }}
-            title="Kembali ke Beranda"
-          >
-            <i className="fas fa-home" style={{ fontSize: '1.25rem' }}></i>
-          </button>
+    <div className="min-h-screen bg-gray-100">
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="text-3xl font-bold text-gray-900 py-6">
+            PLATFORM PETANI CERDAS INDONESIA
+          </h1>
+        </div>
+      </header>
 
-          <div style={{ 
-            display: 'flex', 
-            gap: '1rem',
-            alignItems: 'center',
-            flexWrap: 'wrap'
-          }}>
-            <button 
-              onClick={() => handleComponentChange('weather')} 
-              style={{ 
-                padding: '0.5rem 1rem',
-                backgroundColor: selectedComponent === 'weather' ? 'white' : 'transparent',
-                color: selectedComponent === 'weather' ? COLORS.primary : 'white',
-                border: '1px solid white',
-                borderRadius: '0.375rem',
-                cursor: 'pointer',
-                fontWeight: '500',
-                transition: 'all 0.2s'
-              }}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex space-x-4 mb-6">
+            <button
+              onClick={() => setActiveTab('weather')}
+              className={`px-4 py-2 rounded ${
+                activeTab === 'weather' ? 'bg-emerald-600 text-white' : 'bg-gray-200'
+              }`}
             >
               Analisa Musim Tanam
             </button>
-            <button 
-              onClick={() => handleComponentChange('farming')} 
-              style={{ 
-                padding: '0.5rem 1rem',
-                backgroundColor: selectedComponent === 'farming' ? 'white' : 'transparent',
-                color: selectedComponent === 'farming' ? COLORS.primary : 'white',
-                border: '1px solid white',
-                borderRadius: '0.375rem',
-                cursor: 'pointer',
-                fontWeight: '500',
-                transition: 'all 0.2s'
-              }}
+            <button
+              onClick={() => setActiveTab('farming')}
+              className={`px-4 py-2 rounded ${
+                activeTab === 'farming' ? 'bg-emerald-600 text-white' : 'bg-gray-200'
+              }`}
             >
-              Analisis Usaha Tani
+              Analisa Usaha Tani
             </button>
-            <button 
-              onClick={() => handleComponentChange('pest')} 
-              style={{ 
-                padding: '0.5rem 1rem',
-                backgroundColor: selectedComponent === 'pest' ? 'white' : 'transparent',
-                color: selectedComponent === 'pest' ? COLORS.primary : 'white',
-                border: '1px solid white',
-                borderRadius: '0.375rem',
-                cursor: 'pointer',
-                fontWeight: '500',
-                transition: 'all 0.2s'
-              }}
+            <button
+              onClick={() => setActiveTab('pest')}
+              className={`px-4 py-2 rounded ${
+                activeTab === 'pest' ? 'bg-emerald-600 text-white' : 'bg-gray-200'
+              }`}
             >
-              Analisis Hama
+              Analisa Ambang Ekonomi Hama
             </button>
-            <button 
-              onClick={() => handleComponentChange('research')} 
-              style={{ 
-                padding: '0.5rem 1rem',
-                backgroundColor: selectedComponent === 'research' ? 'white' : 'transparent',
-                color: selectedComponent === 'research' ? COLORS.primary : 'white',
-                border: '1px solid white',
-                borderRadius: '0.375rem',
-                cursor: 'pointer',
-                fontWeight: '500',
-                transition: 'all 0.2s'
-              }}
+            <button
+              onClick={() => setActiveTab('research')}
+              className={`px-4 py-2 rounded ${
+                activeTab === 'research' ? 'bg-emerald-600 text-white' : 'bg-gray-200'
+              }`}
             >
               Analisa Penelitian
             </button>
           </div>
+
+          <div className="mt-6">
+            {activeTab === 'weather' && <WeatherCharts />}
+            {activeTab === 'farming' && <FarmingAnalysis />}
+            {activeTab === 'pest' && <PestEconomicAnalysis />}
+            {activeTab === 'research' && <ResearchAnalysis />}
+          </div>
         </div>
-      </nav>
-      <div style={{ 
-        maxWidth: '1200px', 
-        margin: '0 auto',
-        padding: '20px' 
-      }}>
-        {selectedComponent === 'weather' && <WeatherCharts />}
-        {selectedComponent === 'farming' && <FarmingAnalysis />}
-        {selectedComponent === 'pest' && <PestEconomicAnalysis />}
-        {selectedComponent === 'research' && <ResearchAnalysis />}
-      </div>
+      </main>
     </div>
   );
 }
 
-// Render aplikasi
-console.log('Attempting to render app...');
-const domContainer = document.getElementById('root');
-console.log('Root element:', domContainer);
-const root = ReactDOM.createRoot(domContainer);
-root.render(
-  <App />
-);
+export default App;
