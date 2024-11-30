@@ -1,5 +1,28 @@
 import React, { useState } from 'react';
-import { Chart as ChartJS } from 'chart.js/auto';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+import { Line, Bar } from 'react-chartjs-2';
+
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 // Constants and Configuration
 const GEMINI_API_KEY = "AIzaSyAcwroBdyqURbkXLDUkzRQmDTH7FyX0TRA";
@@ -232,18 +255,14 @@ async function getGeminiAnalysis(prompt, month, cropType) {
 
 // Komponen WeatherCharts untuk visualisasi data cuaca
 const WeatherCharts = () => {
-  const [city, setCity] = React.useState("Jambi");
-  const [selectedCrop, setSelectedCrop] = React.useState('Padi');
-  const [analyzing, setAnalyzing] = React.useState(false);
-  const [analysis, setAnalysis] = React.useState('');
-  const [aiAnalysis, setAiAnalysis] = React.useState('');
-  const [analysisProgress, setAnalysisProgress] = React.useState(0);
+  const [selectedCity, setSelectedCity] = useState('Jambi');
+  const [chartData, setChartData] = useState(null);
   const chartRef = React.useRef(null);
   const rainChartRef = React.useRef(null);
   const [charts, setCharts] = React.useState({ temp: null, rain: null });
 
   React.useEffect(() => {
-    if (!CITIES[city] || !chartRef.current || !rainChartRef.current) return;
+    if (!CITIES[selectedCity] || !chartRef.current || !rainChartRef.current) return;
 
     // Destroy existing charts
     if (charts.temp) charts.temp.destroy();
@@ -254,11 +273,11 @@ const WeatherCharts = () => {
     const tempChart = new Chart(tempCtx, {
       type: 'line',
       data: {
-        labels: CITIES[city].monthlyWeather.map(w => w.month),
+        labels: CITIES[selectedCity].monthlyWeather.map(w => w.month),
         datasets: [
           {
             label: 'Suhu Maksimum (°C)',
-            data: CITIES[city].monthlyWeather.map(w => w.temperature_max),
+            data: CITIES[selectedCity].monthlyWeather.map(w => w.temperature_max),
             borderColor: '#dc2626',
             backgroundColor: 'rgba(220, 38, 38, 0.1)',
             tension: 0.4,
@@ -266,7 +285,7 @@ const WeatherCharts = () => {
           },
           {
             label: 'Suhu Minimum (°C)',
-            data: CITIES[city].monthlyWeather.map(w => w.temperature_min),
+            data: CITIES[selectedCity].monthlyWeather.map(w => w.temperature_min),
             borderColor: '#2563eb',
             backgroundColor: 'rgba(37, 99, 235, 0.1)',
             tension: 0.4,
@@ -302,10 +321,10 @@ const WeatherCharts = () => {
     const rainChart = new Chart(rainCtx, {
       type: 'bar',
       data: {
-        labels: CITIES[city].monthlyWeather.map(w => w.month),
+        labels: CITIES[selectedCity].monthlyWeather.map(w => w.month),
         datasets: [{
           label: 'Curah Hujan (mm)',
-          data: CITIES[city].monthlyWeather.map(w => w.rainfall),
+          data: CITIES[selectedCity].monthlyWeather.map(w => w.rainfall),
           backgroundColor: COLORS.accent,
           borderColor: COLORS.accent,
           borderWidth: 1
@@ -340,41 +359,20 @@ const WeatherCharts = () => {
       if (charts.temp) charts.temp.destroy();
       if (charts.rain) charts.rain.destroy();
     };
-  }, [city]);
+  }, [selectedCity]);
 
   const analyzeWeather = async () => {
-    setAnalyzing(true);
-    setAnalysisProgress(0);
-    setAiAnalysis(null);
-
-    const simulateProgress = () => {
-      return new Promise((resolve) => {
-        const startTime = Date.now();
-        const progressInterval = setInterval(() => {
-          const elapsedTime = Date.now() - startTime;
-          const progress = Math.min(Math.floor((elapsedTime / 5000) * 100), 99);
-          setAnalysisProgress(progress);
-
-          if (progress >= 99) {
-            clearInterval(progressInterval);
-            resolve();
-          }
-        }, 50);
-      });
-    };
-
-    try {
-      const cityData = CITIES[city];
-      const cropData = CROPS.find(c => c.name === selectedCrop);
-      
-      const result = `Analisis Musim Tanam untuk ${selectedCrop} di ${city}:
+    const cityData = CITIES[selectedCity];
+    const cropData = CROPS.find(c => c.name === 'Padi');
+    
+    const result = `Analisis Musim Tanam untuk ${cropData.name} di ${selectedCity}:
         
       1. Suhu:
-      - Suhu optimal untuk ${selectedCrop}: ${cropData.optimalTemperature.min}°C - ${cropData.optimalTemperature.max}°C
-      - Suhu di ${city} sesuai untuk penanaman
+      - Suhu optimal untuk ${cropData.name}: ${cropData.optimalTemperature.min}°C - ${cropData.optimalTemperature.max}°C
+      - Suhu di ${selectedCity} sesuai untuk penanaman
       
       2. Curah Hujan:
-      - Kebutuhan air ${selectedCrop}: ${cropData.waterRequirement.min}-${cropData.waterRequirement.max} mm/bulan
+      - Kebutuhan air ${cropData.name}: ${cropData.waterRequirement.min}-${cropData.waterRequirement.max} mm/bulan
       - Bulan dengan curah hujan optimal: ${cropData.bestPlantingMonths.join(', ')}
       
       3. Rekomendasi:
@@ -382,15 +380,13 @@ const WeatherCharts = () => {
       - Perhatikan: ${cropData.challenges}
       - Jenis tanah yang sesuai: ${cropData.soilType}`;
       
-      setAnalysis(result);
+    setChartData(result);
 
-      const progressPromise = simulateProgress();
+    const annualData = cityData.monthlyWeather.map(month =>
+      `${month.month}: Suhu ${month.temperature_min}-${month.temperature_max}°C, Curah Hujan ${month.rainfall} mm`
+    ).join("\n");
 
-      const annualData = cityData.monthlyWeather.map(month =>
-        `${month.month}: Suhu ${month.temperature_min}-${month.temperature_max}°C, Curah Hujan ${month.rainfall} mm`
-      ).join("\n");
-
-      const aiPrompt = `Analisis Musim Tanam Khusus ${selectedCrop} di ${city}:
+    const aiPrompt = `Analisis Musim Tanam Khusus ${cropData.name} di ${selectedCity}:
 
 Data Tanaman:
 - Suhu Optimal: ${cropData.optimalTemperature.min}-${cropData.optimalTemperature.max}°C
@@ -411,18 +407,8 @@ Berikan analisis mendalam tentang:
 
 `;
 
-      const aiResult = await getGeminiAnalysis(aiPrompt, cityData.monthlyWeather[0].month, selectedCrop);
-      setAiAnalysis(aiResult);
-      setAnalysisProgress(100);
-      
-      await progressPromise;
-    } catch (error) {
-      console.error("Error in analysis:", error);
-      setAiAnalysis(`Maaf, terjadi kesalahan saat menganalisis: ${error.message}`);
-    } finally {
-      setAnalyzing(false);
-      setAnalysisProgress(100);
-    }
+    const aiResult = await getGeminiAnalysis(aiPrompt, cityData.monthlyWeather[0].month, 'Padi');
+    setChartData(aiResult);
   };
 
   const styles = {
@@ -449,9 +435,8 @@ Berikan analisis mendalam tentang:
         marginBottom: '20px'
       }}>
         <select
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-          disabled={analyzing}
+          value={selectedCity}
+          onChange={(e) => setSelectedCity(e.target.value)}
           style={{
             flex: 1,
             padding: '12px',
@@ -464,36 +449,19 @@ Berikan analisis mendalam tentang:
           ))}
         </select>
         
-        <select
-          value={selectedCrop}
-          onChange={(e) => setSelectedCrop(e.target.value)}
-          disabled={analyzing}
-          style={{
-            flex: 1,
-            padding: '12px',
-            borderRadius: '8px',
-            border: '1px solid #e2e8f0'
-          }}
-        >
-          {CROPS.map(crop => (
-            <option key={crop.name} value={crop.name}>{crop.name}</option>
-          ))}
-        </select>
-        
         <button
           onClick={analyzeWeather}
-          disabled={analyzing}
           style={{
             padding: '12px 24px',
             borderRadius: '8px',
             border: 'none',
-            background: analyzing ? '#a0aec0' : COLORS.primary,
+            background: COLORS.primary,
             color: 'white',
-            cursor: analyzing ? 'not-allowed' : 'pointer',
+            cursor: 'pointer',
             fontWeight: '500'
           }}
         >
-          {analyzing ? 'Menganalisis...' : 'Analisa Musim Tanam'}
+          Analisa Musim Tanam
         </button>
       </div>
 
@@ -542,7 +510,7 @@ Berikan analisis mendalam tentang:
             </tr>
           </thead>
           <tbody>
-            {CITIES[city].monthlyWeather.map((weather, index) => (
+            {CITIES[selectedCity].monthlyWeather.map((weather, index) => (
               <tr key={index}>
                 <td style={styles.tableCellStyle}>{weather.month}</td>
                 <td style={styles.tableCellStyle}>{weather.season}</td>
@@ -556,7 +524,7 @@ Berikan analisis mendalam tentang:
         </table>
       </div>
 
-      {analysis && (
+      {chartData && (
         <div className="analysis-result" style={{
           marginTop: '20px',
           background: 'white',
@@ -569,41 +537,8 @@ Berikan analisis mendalam tentang:
             whiteSpace: 'pre-wrap',
             fontFamily: 'inherit'
           }}>
-            {analysis}
+            {chartData}
           </pre>
-          <div className="ai-analysis">
-            <h3 style={{
-              marginTop: '20px',
-              color: COLORS.dark
-            }}>
-              Analisis AI:
-            </h3>
-            {analyzing ? (
-              <div className="loading-spinner">
-                <progress 
-                  value={analysisProgress} 
-                  max={100}
-                  style={{
-                    width: '100%',
-                    height: '8px'
-                  }}
-                />
-                <div>Menganalisis dengan AI...</div>
-              </div>
-            ) : (
-              <div 
-                className="ai-content"
-                dangerouslySetInnerHTML={{
-                  __html: aiAnalysis
-                    ? aiAnalysis
-                        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                        .replace(/\*(.*?)\*/g, "<em>$1</em>")
-                        .replace(/\n/g, "<br>")
-                    : ""
-                }}
-              />
-            )}
-          </div>
         </div>
       )}
     </div>
@@ -612,110 +547,33 @@ Berikan analisis mendalam tentang:
 
 // Komponen FarmingAnalysis untuk analisis usaha tani
 const FarmingAnalysis = () => {
-    const [formData, setFormData] = React.useState({
-        landSize: '',
-        landUnit: 'hectare',
-        soilType: '',
-        irrigationType: '',
-        soilPh: '',
-        landSlope: '',
-        landHistory: '',
-        waterSource: '',
-        landStatus: '',
-        landAddress: '',
+    const [analysisData, setAnalysisData] = useState({
         cropType: '',
-        cropVariety: '',
-        plantingMethod: '',
-        cropAge: '',
-        plantingDistance: '',
-        seedsPerHole: '',
-        fertilizer: '',
-        pesticide: '',
-        weedControl: '',
-        harvestMethod: '',
-        laborCount: '',
-        seedCost: '',
-        fertilizerCost: '',
-        pesticideCost: '',
-        laborCost: '',
-        equipmentCost: '',
-        otherCosts: '',
-        expectedYield: '',
-        marketPrice: '',
-        marketLocation: '',
-        buyerType: '',
-        grainQuality: '',
-        marketingStrategy: '',
-        farmingExperience: '',
-        previousCrop: '',
-        farmingGroup: '',
-        technicalAssistance: '',
-        insuranceStatus: '',
-        certifications: ''
+        landArea: '',
+        productionCost: '',
+        sellingPrice: '',
+        yield: ''
     });
 
     const sampleData = {
-        // Data Lahan
-        landSize: "1000",
-        landUnit: "m2",
-        soilType: "Tanah Humus",
-        irrigationType: "Irigasi Teknis",
-        soilPh: "6.5",
-        landSlope: "Datar (0-3%)",
-        landHistory: "Lahan bekas sawah produktif",
-        waterSource: "Sungai dan sumur",
-        landStatus: "Milik Sendiri",
-        landAddress: "Desa Sumber Makmur, Kec. Tani Jaya",
-        
-        // Data Tanaman
-        cropType: "Padi",
-        cropVariety: "IR64",
-        plantingMethod: "Tanam Pindah (Tandur)",
-        cropAge: "110-120 hari",
-        plantingDistance: "25 x 25 cm",
-        seedsPerHole: "2-3 bibit",
-        fertilizer: "NPK Phonska (300 kg/ha), Urea (200 kg/ha)",
-        pesticide: "Pestisida organik berbahan daun nimba",
-        weedControl: "Penyiangan manual dan herbisida selektif",
-        harvestMethod: "Combine Harvester",
-
-        // Biaya Produksi
-        seedCost: "500000",
-        fertilizerCost: "1500000",
-        pesticideCost: "500000",
-        laborCount: "3",
-        laborCost: "3000000",
-        equipmentCost: "2000000",
-        otherCosts: "1000000",
-
-        // Proyeksi Produksi & Pendapatan
-        expectedYield: "4000",
-        marketPrice: "5000",
-        marketLocation: "Pasar Induk Daerah",
-        buyerType: "Pengepul dan Bulog",
-        grainQuality: "Premium (Kadar air 14%)",
-        marketingStrategy: "Kemitraan dengan Bulog",
-
-        // Info Tambahan
-        farmingExperience: "5",
-        previousCrop: "Jagung",
-        farmingGroup: "Kelompok Tani Makmur Jaya",
-        technicalAssistance: "Penyuluh Pertanian Lapangan (PPL)",
-        insuranceStatus: "AUTP (Asuransi Usaha Tani Padi)",
-        certifications: "Sertifikasi GAP (Good Agricultural Practices)"
+        cropType: 'Padi',
+        landArea: '1000',
+        productionCost: '5000000',
+        sellingPrice: '6000000',
+        yield: '4000'
     };
 
     const loadSampleData = () => {
-        setFormData(sampleData);
+        setAnalysisData(sampleData);
     };
 
-    const [isLoading, setIsLoading] = React.useState(false);
-    const [analysis, setAnalysis] = React.useState(null);
-    const [error, setError] = React.useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [analysis, setAnalysis] = useState(null);
+    const [error, setError] = useState(null);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
+        setAnalysisData(prev => ({
             ...prev,
             [name]: value
         }));
@@ -728,13 +586,13 @@ const FarmingAnalysis = () => {
         try {
             const prompt = `Berdasarkan data usaha tani berikut:
 
-Lahan: ${formData.landSize} ${formData.landUnit}
-Biaya Operasional: Rp ${calculateTotalCosts().toLocaleString()}
-Estimasi Hasil Panen: ${formData.expectedYield} kg
-Harga Jual: Rp ${formData.marketPrice}/kg
-ROI: ${calculateROI().toFixed(1)}%
-B/C Ratio: ${calculateBCRatio().toFixed(2)}
-Break Even Point: ${calculateBEP().units.toFixed(0)} kg
+Lahan: ${analysisData.landArea} m²
+Biaya Operasional: Rp ${analysisData.productionCost}
+Estimasi Hasil Panen: ${analysisData.yield} kg
+Harga Jual: Rp ${analysisData.sellingPrice}/kg
+ROI: ${((analysisData.sellingPrice - analysisData.productionCost) / analysisData.productionCost) * 100}%
+B/C Ratio: ${analysisData.sellingPrice / analysisData.productionCost}
+Break Even Point: ${analysisData.productionCost / analysisData.sellingPrice} kg
 
 Berikan analisis komprehensif dalam bentuk satu paragraf yang detail dan mendalam. Gunakan format teks berikut:
 - Gunakan **teks** untuk penekanan penting atau kesimpulan utama
@@ -753,7 +611,7 @@ Analisis harus mencakup aspek-aspek berikut dalam satu paragraf yang mengalir:
 
 Gunakan bahasa formal dan ilmiah yang mengalir dengan baik. Hindari penggunaan poin-poin atau pembagian yang terpisah. Semua aspek harus terhubung secara logis dalam satu paragraf yang kohesif dan komprehensif.`;
 
-            const result = await getGeminiAnalysis(prompt, formData.landAddress, formData.cropType);
+            const result = await getGeminiAnalysis(prompt, 'Jambi', 'Padi');
             setAnalysis(result);
         } catch (error) {
             setError("Terjadi kesalahan saat menganalisis data. Silakan coba lagi.");
@@ -765,25 +623,19 @@ Gunakan bahasa formal dan ilmiah yang mengalir dengan baik. Hindari penggunaan p
 
     // Fungsi perhitungan finansial
     const calculateTotalCosts = () => {
-        const seedCost = parseInt(formData.seedCost) || 0;
-        const fertilizerCost = parseInt(formData.fertilizerCost) || 0;
-        const pesticideCost = parseInt(formData.pesticideCost) || 0;
-        const laborCost = parseInt(formData.laborCost) || 0;
-        const equipmentCost = parseInt(formData.equipmentCost) || 0;
-        const otherCosts = parseInt(formData.otherCosts) || 0;
-        
-        return seedCost + fertilizerCost + pesticideCost + laborCost + equipmentCost + otherCosts;
+        const productionCost = parseInt(analysisData.productionCost) || 0;
+        return productionCost;
     };
 
     const calculateEstimatedRevenue = () => {
-        const yield_kg = parseInt(formData.expectedYield) || 0;
-        const price_per_kg = parseInt(formData.marketPrice) || 0;
+        const yield_kg = parseInt(analysisData.yield) || 0;
+        const price_per_kg = parseInt(analysisData.sellingPrice) || 0;
         return yield_kg * price_per_kg;
     };
 
     const calculateBEP = () => {
         const totalCosts = calculateTotalCosts();
-        const pricePerKg = parseInt(formData.marketPrice) || 0;
+        const pricePerKg = parseInt(analysisData.sellingPrice) || 0;
         
         if (pricePerKg === 0) return { units: 0, value: 0 };
         
@@ -811,11 +663,11 @@ Gunakan bahasa formal dan ilmiah yang mengalir dengan baik. Hindari penggunaan p
     };
 
     const analyzeLandSuitability = () => {
-        const crop = CROPS.find(c => c.name.toLowerCase() === formData.cropType.toLowerCase());
+        const crop = CROPS.find(c => c.name.toLowerCase() === analysisData.cropType.toLowerCase());
         if (!crop) return { suitable: false, message: 'Jenis tanaman tidak ditemukan dalam database' };
 
-        const soilTypeMatch = formData.soilType.toLowerCase().includes(crop.soilType.toLowerCase());
-        const phValue = parseFloat(formData.soilPh);
+        const soilTypeMatch = analysisData.soilType.toLowerCase().includes(crop.soilType.toLowerCase());
+        const phValue = parseFloat(analysisData.soilPh);
         const phSuitable = phValue >= 5.5 && phValue <= 7.5;
 
         return {
@@ -826,7 +678,7 @@ Gunakan bahasa formal dan ilmiah yang mengalir dengan baik. Hindari penggunaan p
     };
 
     const analyzePlantingSeason = (cityData) => {
-        const crop = CROPS.find(c => c.name.toLowerCase() === formData.cropType.toLowerCase());
+        const crop = CROPS.find(c => c.name.toLowerCase() === analysisData.cropType.toLowerCase());
         if (!crop) return { suitable: false, message: 'Jenis tanaman tidak ditemukan' };
 
         const currentMonth = new Date().getMonth();
@@ -873,48 +725,9 @@ Gunakan bahasa formal dan ilmiah yang mengalir dengan baik. Hindari penggunaan p
         return text;
     };
 
-    const defaultAnalysisText = `1. ANALISIS KELAYAKAN USAHA
-- Silakan masukkan data usaha tani Anda untuk mendapatkan **analisis kelayakan** yang akurat
-- Kami akan membandingkan dengan *standar industri pertanian*
-- Anda akan mendapatkan __rekomendasi spesifik__ untuk usaha tani Anda
-
-2. ANALISIS KEUANGAN
-- Perhitungan Break Even Point (BEP)
-- Analisis margin keuntungan
-- Rasio biaya-pendapatan
-- Proyeksi arus kas
-
-3. ANALISIS TEKNIS
-- Evaluasi kesesuaian lahan dan tanaman
-- Analisis efisiensi penggunaan input
-- Rekomendasi peningkatan produktivitas
-
-4. ANALISIS RISIKO
-- Identifikasi potensi risiko
-- Strategi mitigasi
-- Rekomendasi asuransi
-
-5. STRATEGI PENGEMBANGAN
-- Saran peningkatan efisiensi
-- Peluang diversifikasi
-- Strategi pemasaran
-- Analisis nilai tambah
-
-__Masukkan data usaha tani Anda untuk mendapatkan analisis yang lebih akurat dan spesifik.__`;
-
-    // Default values for basic analysis
-    const defaultAnalysis = {
-        modalUsaha: 10000000,
-        proyeksiPendapatan: 15000000,
-        estimasiKeuntungan: 5000000,
-        roi: 50,
-        hasilPanen: 1000,
-        hargaJual: 15000
+    const renderFormattedText = (text) => {
+        return { __html: formatAnalysisText(text) };
     };
-
-    React.useEffect(() => {
-        setFormData(sampleData);
-    }, []);
 
     return (
         <div className="farming-analysis">
@@ -926,23 +739,13 @@ __Masukkan data usaha tani Anda untuk mendapatkan analisis yang lebih akurat dan
 
                     <div className="form-group">
                         <label>Luas Lahan</label>
-                        <div className="input-group">
-                            <input
-                                type="number"
-                                name="landSize"
-                                value={formData.landSize}
-                                onChange={handleInputChange}
-                                placeholder="Masukkan luas lahan"
-                            />
-                            <select 
-                                name="landUnit"
-                                value={formData.landUnit}
-                                onChange={handleInputChange}
-                            >
-                                <option value="m2">m²</option>
-                                <option value="ha">ha</option>
-                            </select>
-                        </div>
+                        <input
+                            type="number"
+                            name="landArea"
+                            value={analysisData.landArea}
+                            onChange={handleInputChange}
+                            placeholder="Masukkan luas lahan"
+                        />
                     </div>
 
                     <div className="form-group">
@@ -950,125 +753,22 @@ __Masukkan data usaha tani Anda untuk mendapatkan analisis yang lebih akurat dan
                         <input
                             type="text"
                             name="soilType"
-                            value={formData.soilType}
+                            value={analysisData.soilType}
                             onChange={handleInputChange}
                             placeholder="Contoh: Tanah Humus, Tanah Liat"
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Sistem Irigasi</label>
+                        <label>pH Tanah</label>
                         <input
                             type="text"
-                            name="irrigationType"
-                            value={formData.irrigationType}
+                            name="soilPh"
+                            value={analysisData.soilPh}
                             onChange={handleInputChange}
-                            placeholder="Contoh: Irigasi Teknis, Tadah Hujan"
+                            placeholder="Contoh: 6.5"
                         />
                     </div>
-
-                    <div className="form-fields">
-                        <div className="form-group">
-                            <label>pH Tanah</label>
-                            <input
-                                type="text"
-                                name="soilPh"
-                                value={formData.soilPh}
-                                onChange={handleInputChange}
-                                placeholder="Contoh: 6.5"
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label>Kemiringan Lahan</label>
-                            <input
-                                type="text"
-                                name="landSlope"
-                                value={formData.landSlope}
-                                onChange={handleInputChange}
-                                placeholder="Contoh: Datar (0-3%)"
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label>Riwayat Lahan</label>
-                            <input
-                                type="text"
-                                name="landHistory"
-                                value={formData.landHistory}
-                                onChange={handleInputChange}
-                                placeholder="Contoh: Bekas sawah produktif"
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label>Sumber Air</label>
-                            <input
-                                type="text"
-                                name="waterSource"
-                                value={formData.waterSource}
-                                onChange={handleInputChange}
-                                placeholder="Contoh: Sungai, Sumur"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="form-section" style={{ 
-                  padding: '15px', 
-                  backgroundColor: '#fff', 
-                  borderRadius: '8px', 
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                }}>
-                  <h3 style={{ 
-                    color: '#059669',
-                    borderBottom: '2px solid #ddd', 
-                    paddingBottom: '10px', 
-                    marginBottom: '15px', 
-                    fontSize: '16px'
-                  }}>Data Pengendalian</h3>
-                  <div className="input-grid" style={{ display: 'grid', gap: '10px' }}>
-                    <div className="form-group">
-                      <label>Biaya Pengendalian (Rp)</label>
-                      <input 
-                        type="text" 
-                        name="controlCost" 
-                        value={formData.controlCost} 
-                        onChange={handleInputChange}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Efektivitas Pengendalian (%)</label>
-                      <input 
-                        type="text" 
-                        name="controlEffectiveness" 
-                        value={formData.controlEffectiveness} 
-                        onChange={handleInputChange}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Biaya Tenaga Kerja (Rp)</label>
-                      <input 
-                        type="text" 
-                        name="laborCost" 
-                        value={formData.laborCost} 
-                        onChange={handleInputChange}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Biaya Bahan (Rp)</label>
-                      <input 
-                        type="text" 
-                        name="materialCost" 
-                        value={formData.materialCost} 
-                        onChange={handleInputChange}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 <div className="form-section">
@@ -1078,290 +778,42 @@ __Masukkan data usaha tani Anda untuk mendapatkan analisis yang lebih akurat dan
                         <input
                             type="text"
                             name="cropType"
-                            value={formData.cropType}
+                            value={analysisData.cropType}
                             onChange={handleInputChange}
                             placeholder="Contoh: Padi"
                         />
                     </div>
 
                     <div className="form-group">
-                        <label>Pupuk</label>
-                        <input
-                            type="text"
-                            name="fertilizer"
-                            value={formData.fertilizer}
-                            onChange={handleInputChange}
-                            placeholder="Jenis dan dosis pupuk"
-                        />
-                    </div>
-
-                    <div className="form-group">
-                        <label>Pestisida</label>
-                        <input
-                            type="text"
-                            name="pesticide"
-                            value={formData.pesticide}
-                            onChange={handleInputChange}
-                            placeholder="Jenis pestisida yang digunakan"
-                        />
-                    </div>
-
-                    <div className="form-fields">
-                        <div className="form-group">
-                            <label>Varietas</label>
-                            <input
-                                type="text"
-                                name="cropVariety"
-                                value={formData.cropVariety}
-                                onChange={handleInputChange}
-                                placeholder="Contoh: IR64, Ciherang"
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label>Metode Tanam</label>
-                            <input
-                                type="text"
-                                name="plantingMethod"
-                                value={formData.plantingMethod}
-                                onChange={handleInputChange}
-                                placeholder="Contoh: Tanam Pindah"
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label>Umur Panen</label>
-                            <input
-                                type="text"
-                                name="cropAge"
-                                value={formData.cropAge}
-                                onChange={handleInputChange}
-                                placeholder="Contoh: 110-120 hari"
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label>Jarak Tanam</label>
-                            <input
-                                type="text"
-                                name="plantingDistance"
-                                value={formData.plantingDistance}
-                                onChange={handleInputChange}
-                                placeholder="Contoh: 25 x 25 cm"
-                            />
-                        </div>
-
-                        <div className="form-group">
-                            <label>Pengendalian Gulma</label>
-                            <input
-                                type="text"
-                                name="weedControl"
-                                value={formData.weedControl}
-                                onChange={handleInputChange}
-                                placeholder="Contoh: Manual dan herbisida"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div className="form-section">
-                    <h3>Data Biaya</h3>
-                    <div className="form-group">
-                        <label>Biaya Benih (Rp)</label>
+                        <label>Biaya Produksi (Rp)</label>
                         <input
                             type="number"
-                            name="seedCost"
-                            value={formData.seedCost}
+                            name="productionCost"
+                            value={analysisData.productionCost}
                             onChange={handleInputChange}
-                            placeholder="Masukkan biaya benih"
+                            placeholder="Masukkan biaya produksi"
                         />
                     </div>
-                    <div className="form-group">
-                        <label>Biaya Pupuk (Rp)</label>
-                        <input
-                            type="number"
-                            name="fertilizerCost"
-                            value={formData.fertilizerCost}
-                            onChange={handleInputChange}
-                            placeholder="Masukkan biaya pupuk"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Biaya Pestisida (Rp)</label>
-                        <input
-                            type="number"
-                            name="pesticideCost"
-                            value={formData.pesticideCost}
-                            onChange={handleInputChange}
-                            placeholder="Masukkan biaya pestisida"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Jumlah Pekerja</label>
-                        <input
-                            type="number"
-                            name="laborCount"
-                            value={formData.laborCount}
-                            onChange={handleInputChange}
-                            placeholder="Masukkan jumlah pekerja"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Biaya Tenaga Kerja (Rp)</label>
-                        <input
-                            type="number"
-                            name="laborCost"
-                            value={formData.laborCost}
-                            onChange={handleInputChange}
-                            placeholder="Masukkan biaya tenaga kerja"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Biaya Peralatan (Rp)</label>
-                        <input
-                            type="number"
-                            name="equipmentCost"
-                            value={formData.equipmentCost}
-                            onChange={handleInputChange}
-                            placeholder="Masukkan biaya peralatan"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Biaya Lainnya (Rp)</label>
-                        <input
-                            type="number"
-                            name="otherCosts"
-                            value={formData.otherCosts}
-                            onChange={handleInputChange}
-                            placeholder="Masukkan biaya lainnya"
-                        />
-                    </div>
-                </div>
 
-                <div className="form-section">
-                    <h3>Data Produksi & Pemasaran</h3>
+                    <div className="form-group">
+                        <label>Harga Jual (Rp/kg)</label>
+                        <input
+                            type="number"
+                            name="sellingPrice"
+                            value={analysisData.sellingPrice}
+                            onChange={handleInputChange}
+                            placeholder="Masukkan harga jual"
+                        />
+                    </div>
+
                     <div className="form-group">
                         <label>Perkiraan Hasil Panen (kg)</label>
                         <input
                             type="number"
-                            name="expectedYield"
-                            value={formData.expectedYield}
+                            name="yield"
+                            value={analysisData.yield}
                             onChange={handleInputChange}
                             placeholder="Masukkan perkiraan hasil panen"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Harga Pasar (Rp/kg)</label>
-                        <input
-                            type="number"
-                            name="marketPrice"
-                            value={formData.marketPrice}
-                            onChange={handleInputChange}
-                            placeholder="Masukkan harga pasar per kg"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Lokasi Pemasaran</label>
-                        <input
-                            type="text"
-                            name="marketLocation"
-                            value={formData.marketLocation}
-                            onChange={handleInputChange}
-                            placeholder="Masukkan lokasi pemasaran"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Jenis Pembeli</label>
-                        <input
-                            type="text"
-                            name="buyerType"
-                            value={formData.buyerType}
-                            onChange={handleInputChange}
-                            placeholder="Contoh: Pengepul, Bulog"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Kualitas Gabah</label>
-                        <input
-                            type="text"
-                            name="grainQuality"
-                            value={formData.grainQuality}
-                            onChange={handleInputChange}
-                            placeholder="Contoh: Premium (Kadar air 14%)"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Strategi Pemasaran</label>
-                        <input
-                            type="text"
-                            name="marketingStrategy"
-                            value={formData.marketingStrategy}
-                            onChange={handleInputChange}
-                            placeholder="Contoh: Kemitraan dengan Bulog"
-                        />
-                    </div>
-                </div>
-
-                <div className="form-section">
-                    <h3>Data Tambahan</h3>
-                    <div className="form-group">
-                        <label>Pengalaman Bertani (tahun)</label>
-                        <input
-                            type="number"
-                            name="farmingExperience"
-                            value={formData.farmingExperience}
-                            onChange={handleInputChange}
-                            placeholder="Masukkan pengalaman bertani"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Tanaman Sebelumnya</label>
-                        <input
-                            type="text"
-                            name="previousCrop"
-                            value={formData.previousCrop}
-                            onChange={handleInputChange}
-                            placeholder="Masukkan jenis tanaman sebelumnya"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Kelompok Tani</label>
-                        <input
-                            type="text"
-                            name="farmingGroup"
-                            value={formData.farmingGroup}
-                            onChange={handleInputChange}
-                            placeholder="Contoh: Kelompok Tani Makmur Jaya"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Bantuan Teknis</label>
-                        <input
-                            type="text"
-                            name="technicalAssistance"
-                            value={formData.technicalAssistance}
-                            onChange={handleInputChange}
-                            placeholder="Contoh: Penyuluh Pertanian Lapangan (PPL)"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Status Asuransi</label>
-                        <input
-                            type="text"
-                            name="insuranceStatus"
-                            value={formData.insuranceStatus}
-                            onChange={handleInputChange}
-                            placeholder="Contoh: AUTP (Asuransi Usaha Tani Padi)"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label>Sertifikasi</label>
-                        <input
-                            type="text"
-                            name="certifications"
-                            value={formData.certifications}
-                            onChange={handleInputChange}
-                            placeholder="Contoh: Sertifikasi GAP (Good Agricultural Practices)"
                         />
                     </div>
                 </div>
@@ -1462,21 +914,11 @@ __Masukkan data usaha tani Anda untuk mendapatkan analisis yang lebih akurat dan
 // Komponen PestEconomicAnalysis untuk analisis ambang ekonomi hama
 const PestEconomicAnalysis = () => {
   const [pestData, setPestData] = React.useState({
-    cropType: 'Padi',
     pestType: 'Wereng Coklat',
-    cropPrice: '10000',    // Rp/kg
-    controlCost: '500000', // Rp
-    yieldLoss: '5',        // 5% loss per pest
-    pestDensity: '20',     // pests found
-    sampleArea: '10',      // m²
-    potentialYield: '6000', // kg/ha
-    controlEffectiveness: '80', // %
-    laborCost: '200000',   // Rp
-    materialCost: '300000', // Rp
-    season: 'hujan',       // Musim
-    plantingSeason: 'MT1', // Musim Tanam
-    samplePoints: '5',     // Jumlah Titik Sampel
-    damageIntensity: '10'  // Intensitas Kerusakan (%)
+    cropType: 'Padi',
+    damageLevel: '5',
+    controlCost: '500000',
+    expectedLoss: '10'
   });
   const [analysis, setAnalysis] = React.useState(null);
   const [charts, setCharts] = React.useState([]);
@@ -2240,10 +1682,11 @@ Berikan analisis dalam format yang terstruktur dan mudah dibaca, dengan penekana
 
 // Komponen untuk Analisa Penelitian
 const ResearchAnalysis = () => {
-  const [treatmentData, setTreatmentData] = React.useState([
-    { treatment: 'Perlakuan A', replications: [5, 6, 7] },
-    { treatment: 'Perlakuan B', replications: [8, 7, 9] }
-  ]);
+  const [treatmentData, setTreatmentData] = React.useState({
+    treatments: [],
+    replications: [],
+    results: []
+  });
 
   const [editingLabel, setEditingLabel] = React.useState(null);
   const [editingHeader, setEditingHeader] = React.useState(null);
@@ -2251,56 +1694,63 @@ const ResearchAnalysis = () => {
 
   React.useEffect(() => {
     // Initialize replication labels if empty
-    if (replicationLabels.length === 0 && treatmentData[0]) {
-      setReplicationLabels(treatmentData[0].replications.map((_, i) => `Ulangan ${i + 1}`));
+    if (replicationLabels.length === 0 && treatmentData.treatments[0]) {
+      setReplicationLabels(treatmentData.treatments[0].replications.map((_, i) => `Ulangan ${i + 1}`));
     }
   }, [treatmentData]);
 
   const addColumn = () => {
-    const newData = treatmentData.map(row => ({ ...row, replications: [...row.replications, 0] }));
-    setTreatmentData(newData);
+    const newData = treatmentData.treatments.map(row => ({ ...row, replications: [...row.replications, 0] }));
+    setTreatmentData(prev => ({ ...prev, treatments: newData }));
     setReplicationLabels([...replicationLabels, `Ulangan ${replicationLabels.length + 1}`]);
   };
 
   const addRow = () => {
     const newRow = {
-      treatment: `Perlakuan ${String.fromCharCode(65 + treatmentData.length)}`,
-      replications: Array(treatmentData[0].replications.length).fill(0)
+      treatment: `Perlakuan ${String.fromCharCode(65 + treatmentData.treatments.length)}`,
+      replications: Array(treatmentData.treatments[0].replications.length).fill(0)
     };
-    setTreatmentData([...treatmentData, newRow]);
+    setTreatmentData(prev => ({ ...prev, treatments: [...prev.treatments, newRow] }));
   };
 
   const deleteRow = (rowIndex) => {
-    const newData = treatmentData.filter((_, index) => index !== rowIndex);
-    setTreatmentData(newData);
+    const newData = treatmentData.treatments.filter((_, index) => index !== rowIndex);
+    setTreatmentData(prev => ({ ...prev, treatments: newData }));
   };
 
   const deleteColumn = (colIndex) => {
-    const newData = treatmentData.map(row => ({
+    const newData = treatmentData.treatments.map(row => ({
       ...row,
       replications: row.replications.filter((_, index) => index !== colIndex)
     }));
     const newLabels = replicationLabels.filter((_, index) => index !== colIndex);
-    setTreatmentData(newData);
+    setTreatmentData(prev => ({ ...prev, treatments: newData }));
     setReplicationLabels(newLabels);
   };
 
   const handleInputChange = (index, repIndex, value) => {
-    const newData = [...treatmentData];
-    newData[index].replications[repIndex] = Number(value);
-    setTreatmentData(newData);
+    const newData = treatmentData.treatments.map((row, i) => {
+      if (i === index) {
+        return { ...row, replications: row.replications.map((val, j) => j === repIndex ? Number(value) : val) };
+      }
+      return row;
+    });
+    setTreatmentData(prev => ({ ...prev, treatments: newData }));
   };
 
   const handleLabelEdit = (index, newValue) => {
-    const newData = [...treatmentData];
-    newData[index].treatment = newValue;
-    setTreatmentData(newData);
+    const newData = treatmentData.treatments.map((row, i) => {
+      if (i === index) {
+        return { ...row, treatment: newValue };
+      }
+      return row;
+    });
+    setTreatmentData(prev => ({ ...prev, treatments: newData }));
     setEditingLabel(null);
   };
 
   const handleHeaderEdit = (index, newValue) => {
-    const newLabels = [...replicationLabels];
-    newLabels[index] = newValue;
+    const newLabels = replicationLabels.map((label, i) => i === index ? newValue : label);
     setReplicationLabels(newLabels);
     setEditingHeader(null);
   };
@@ -2322,7 +1772,7 @@ const ResearchAnalysis = () => {
   };
 
   const calculateStatistics = () => {
-    return treatmentData.map(row => ({
+    return treatmentData.treatments.map(row => ({
       treatment: row.treatment,
       mean: calculateMean(row.replications),
       sd: calculateStandardDeviation(row.replications),
@@ -2334,21 +1784,21 @@ const ResearchAnalysis = () => {
   // ANOVA Calculations
   const calculateANOVA = () => {
     // Calculate total number of observations
-    const n = treatmentData.reduce((acc, row) => acc + row.replications.length, 0);
-    const k = treatmentData.length; // number of treatments
-    const r = treatmentData[0].replications.length; // number of replications
+    const n = treatmentData.treatments.reduce((acc, row) => acc + row.replications.length, 0);
+    const k = treatmentData.treatments.length; // number of treatments
+    const r = treatmentData.treatments[0].replications.length; // number of replications
 
     // Calculate correction factor (CF)
-    const totalSum = treatmentData.reduce((acc, row) => 
+    const totalSum = treatmentData.treatments.reduce((acc, row) => 
       acc + row.replications.reduce((sum, val) => sum + val, 0), 0);
     const CF = Math.pow(totalSum, 2) / n;
 
     // Calculate Total Sum of Squares (TSS)
-    const TSS = treatmentData.reduce((acc, row) => 
+    const TSS = treatmentData.treatments.reduce((acc, row) => 
       acc + row.replications.reduce((sum, val) => sum + Math.pow(val, 2), 0), 0) - CF;
 
     // Calculate Treatment Sum of Squares (TrSS)
-    const TrSS = treatmentData.reduce((acc, row) => {
+    const TrSS = treatmentData.treatments.reduce((acc, row) => {
       const treatmentSum = row.replications.reduce((sum, val) => sum + val, 0);
       return acc + Math.pow(treatmentSum, 2) / r;
     }, 0) - CF;
@@ -2429,10 +1879,10 @@ const ResearchAnalysis = () => {
 
   // DMRT Calculations
   const calculateDMRT = () => {
-    if (treatmentData.length < 2) return null;
+    if (treatmentData.treatments.length < 2) return null;
 
     const anova = calculateANOVA();
-    const means = treatmentData.map(row => ({
+    const means = treatmentData.treatments.map(row => ({
       treatment: row.treatment,
       mean: calculateMean(row.replications)
     }));
@@ -2441,7 +1891,7 @@ const ResearchAnalysis = () => {
     means.sort((a, b) => b.mean - a.mean);
 
     // Calculate Standard Error
-    const r = treatmentData[0].replications.length;
+    const r = treatmentData.treatments[0].replications.length;
     const SE = Math.sqrt(anova.MS_error / r);
 
     // Significant Studentized Range (at 5% level)
@@ -2534,14 +1984,14 @@ const ResearchAnalysis = () => {
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '200px' }} />
-            {treatmentData[0].replications.map((_, index) => (
+            {treatmentData.treatments[0].replications.map((_, index) => (
               <col key={index} style={{ width: '120px' }} />
             ))}
           </colgroup>
           <thead>
             <tr>
               <th style={{ border: '1px solid #ddd', padding: '8px', background: '#f8f9fa' }}>Jenis Perlakuan</th>
-              {treatmentData[0].replications.map((_, repIndex) => (
+              {treatmentData.treatments[0].replications.map((_, repIndex) => (
                 <th key={repIndex} style={{ border: '1px solid #ddd', padding: '8px', position: 'relative', background: '#f8f9fa' }}>
                   <div style={{ paddingRight: '24px', position: 'relative' }}>
                     {editingHeader === repIndex ? (
@@ -2599,7 +2049,7 @@ const ResearchAnalysis = () => {
             </tr>
           </thead>
           <tbody>
-            {treatmentData.map((row, index) => (
+            {treatmentData.treatments.map((row, index) => (
               <tr key={index}>
                 <td style={{ border: '1px solid #ddd', padding: '8px', position: 'relative' }}>
                   <div style={{ paddingRight: '24px', position: 'relative' }}>
